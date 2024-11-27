@@ -11,17 +11,20 @@ import org.jetbrains.annotations.NotNull;
 
 import java.io.*;
 import java.security.Security;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
 
 public class PgpBouncyKeyReader {
     static {
         // Add Bouncy Castle Provider to JVM
         Security.addProvider(new BouncyCastleProvider());
     }
-    public PGPPrivateKey readPrivateKey(String privateKeyPath, String passphrase) throws IllegalArgumentException, IOException, PGPException {
+    public List<PGPPrivateKey> readPrivateKey(String privateKeyPath, String passphrase) throws IllegalArgumentException, IOException, PGPException {
         PGPSecretKeyRing secretKeyRing = getPgpSecretKeyRing(privateKeyPath);
 
         // Get the first secret key
-        PGPSecretKey secretKey = secretKeyRing.getSecretKey();
+//        PGPSecretKey secretKey = secretKeyRing.getSecretKey();
 
         // Build a PBESecretKeyDecryptor using the passphrase
         PBESecretKeyDecryptor decryptor = new JcePBESecretKeyDecryptorBuilder(
@@ -29,8 +32,12 @@ public class PgpBouncyKeyReader {
                 .setProvider("BC")
                 .build(passphrase.toCharArray());
 
-        // Extract the private key
-        return secretKey.extractPrivateKey(decryptor);
+        List<PGPPrivateKey> keys = new ArrayList<>();
+        for (Iterator<PGPSecretKey> it = secretKeyRing.getSecretKeys(); it.hasNext(); ) {
+            PGPSecretKey secretKey = it.next();
+            keys.add(secretKey.extractPrivateKey(decryptor));
+        }
+        return keys;
     }
 
     @NotNull

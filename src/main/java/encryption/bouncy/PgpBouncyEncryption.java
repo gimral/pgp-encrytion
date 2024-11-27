@@ -1,22 +1,21 @@
 package encryption.bouncy;
 
-import org.bouncycastle.bcpg.ArmoredInputStream;
-import org.bouncycastle.bcpg.ArmoredOutputStream;
-import org.bouncycastle.bcpg.SymmetricKeyAlgorithmTags;
+import org.bouncycastle.bcpg.*;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.bouncycastle.openpgp.*;
 import org.bouncycastle.openpgp.jcajce.JcaPGPObjectFactory;
 import org.bouncycastle.openpgp.operator.PublicKeyDataDecryptorFactory;
+import org.bouncycastle.openpgp.operator.jcajce.JcaKeyFingerprintCalculator;
 import org.bouncycastle.openpgp.operator.jcajce.JcePGPDataEncryptorBuilder;
 import org.bouncycastle.openpgp.operator.jcajce.JcePublicKeyDataDecryptorFactoryBuilder;
 import org.bouncycastle.openpgp.operator.jcajce.JcePublicKeyKeyEncryptionMethodGenerator;
 import org.bouncycastle.util.io.Streams;
 
 import java.io.*;
-import java.security.SecureRandom;
 import java.security.Security;
 import java.util.Date;
 import java.util.List;
+import java.util.Optional;
 
 public class PgpBouncyEncryption {
 
@@ -30,7 +29,7 @@ public class PgpBouncyEncryption {
         PGPEncryptedDataGenerator encGen = new PGPEncryptedDataGenerator(
                 new JcePGPDataEncryptorBuilder(SymmetricKeyAlgorithmTags.AES_256)
                         .setWithIntegrityPacket(true)
-                        .setSecureRandom(new SecureRandom())
+//                        .setSecureRandom(new SecureRandom())
                         .setProvider("BC"));
 
         // Add each public key to the encryption generator
@@ -65,22 +64,26 @@ public class PgpBouncyEncryption {
 
     public byte[] decryptData(
             byte[] encryptedData,
-            PGPPrivateKey privateKey)
+            List<PGPPrivateKey> privateKeys)
             throws PGPException, IOException
     {
         InputStream encryptedInput = new ByteArrayInputStream(encryptedData);
         ByteArrayOutputStream decryptedOutput = new ByteArrayOutputStream();
-        PGPObjectFactory pgpFact = new JcaPGPObjectFactory(new ArmoredInputStream(encryptedInput));
+
+        PGPObjectFactory pgpFact = new PGPObjectFactory(PGPUtil.getDecoderStream(new ArmoredInputStream(encryptedInput, true)), new JcaKeyFingerprintCalculator());
         PGPEncryptedDataList encList = (PGPEncryptedDataList)pgpFact.nextObject();
         // find the matching public key encrypted data packet.
         PGPPublicKeyEncryptedData encData = null;
+        PGPPrivateKey privateKey = null;
         for (PGPEncryptedData pgpEnc: encList)
         {
             PGPPublicKeyEncryptedData pkEnc
                     = (PGPPublicKeyEncryptedData)pgpEnc;
-            if (pkEnc.getKeyID() == privateKey.getKeyID())
+            Optional<PGPPrivateKey> optionalKey = privateKeys.stream().filter(p -> p.getKeyID() == pkEnc.getKeyID()).findAny();
+            if (optionalKey.isPresent())
             {
                 encData = pkEnc;
+                privateKey = optionalKey.get();
                 break;
             }
         }

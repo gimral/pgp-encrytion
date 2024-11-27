@@ -1,6 +1,8 @@
 package encryption.painless;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
 import org.bouncycastle.openpgp.PGPException;
@@ -20,13 +22,13 @@ public class PerformanceTest {
         long totalDecryptionTime = 0; // Total time spent on decryption
 
         String word = generateRandomWord(5, 100); // Generate a random word
-        String encryptedValue = pgpEncrytion.encryptData(word, keyPaths); // Encrypt the word
+        byte[] encryptedValue = pgpEncrytion.encryptData(word, keyPaths); // Encrypt the word
         for (int i = 1; i <= iterations; i++) {
 
 
             // Time only the decryption process
             long decryptionStartTime = System.nanoTime();
-            String decryptedNppValue = pgpEncrytion.decryptData(encryptedValue);
+            String decryptedNppValue = pgpEncrytion.decryptData(new String(encryptedValue, StandardCharsets.UTF_8));
             long decryptionEndTime = System.nanoTime();
 
             long decryptionTime = decryptionEndTime - decryptionStartTime;

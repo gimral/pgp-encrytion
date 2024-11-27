@@ -1,5 +1,6 @@
 package encryption.bouncy;
 
+import encryption.painless.PgpEncrytion;
 import org.bouncycastle.openpgp.PGPPrivateKey;
 import org.bouncycastle.openpgp.PGPPublicKey;
 
@@ -12,29 +13,38 @@ import java.util.concurrent.TimeUnit;
 public class PerformanceBouncyTest {
 
     public void testPerformance() throws Exception {
+        String[] keyPaths = new String[] {
+                "/Users/gokhanimral/Projects/pgp-encrytion/keys/app1_public.pgp",
+                "/Users/gokhanimral/Projects/pgp-encrytion/keys/app2_public.pgp"
+        };
 
         PgpBouncyKeyReader keyReader = new PgpBouncyKeyReader();
-        PGPPrivateKey cachedPrivateKey = keyReader.readPrivateKey("/Users/gokhanimral/Projects/pgp-encrytion/keys/app2_private.pgp",
+        List<PGPPrivateKey> cachedPrivateKey = keyReader.readPrivateKey("/Users/gokhanimral/Projects/pgp-encrytion/keys/app2_private.pgp",
                 "1234");
 
         List<PGPPublicKey> publicKeys = new ArrayList<>();
-        publicKeys.add(keyReader.readPublicKey("/Users/gokhanimral/Projects/pgp-encrytion/keys/app2_public.pgp"));
         publicKeys.add(keyReader.readPublicKey("/Users/gokhanimral/Projects/pgp-encrytion/keys/app1_public.pgp"));
+        publicKeys.add(keyReader.readPublicKey("/Users/gokhanimral/Projects/pgp-encrytion/keys/app2_public.pgp"));
 
         int iterations = 100000; // Number of iterations to test
         int reportInterval = 1000; // Interval for reporting performance
 
         long totalDecryptionTime = 0; // Total time spent on decryption
 
-        PgpBouncyEncryption pgpEncryption = new PgpBouncyEncryption();
+        PgpBouncyEncryption bouncyEncryption = new PgpBouncyEncryption();
+        PgpEncrytion painlessEncrytion = new PgpEncrytion("/Users/gokhanimral/Projects/pgp-encrytion/keys/app2_private.pgp",
+                "1234");
 
         for (int i = 1; i <= iterations; i++) {
 
             String word = generateRandomWord(5, 100); // Generate a random word
-            byte[] encryptedValue = pgpEncryption.encryptData(word.getBytes(), publicKeys); // Encrypt the word
+            byte[] encryptedValue2 = bouncyEncryption.encryptData(word.getBytes(), publicKeys); // Encrypt the word
+            String armored2 = new String(encryptedValue2, StandardCharsets.UTF_8);
+            byte[] encryptedValue = painlessEncrytion.encryptData(word, keyPaths); // Encrypt the word
+            String armored = new String(encryptedValue, StandardCharsets.UTF_8);
             // Time only the decryption process
             long decryptionStartTime = System.nanoTime();
-            byte[] decryptedNppValue = pgpEncryption.decryptData(encryptedValue, cachedPrivateKey);
+            byte[] decryptedNppValue = bouncyEncryption.decryptData(encryptedValue2, cachedPrivateKey);
             String app2Value = new String(decryptedNppValue, StandardCharsets.UTF_8);
             if(!app2Value.equals(word)) {
                 throw new Exception("Decryption generated different value");

@@ -7,6 +7,7 @@ import org.bouncycastle.openpgp.operator.PBESecretKeyDecryptor;
 import org.bouncycastle.openpgp.operator.jcajce.JcaPGPDigestCalculatorProviderBuilder;
 import org.bouncycastle.openpgp.operator.jcajce.JcePBESecretKeyDecryptorBuilder;
 import org.pgpainless.PGPainless;
+import org.pgpainless.algorithm.CompressionAlgorithm;
 import org.pgpainless.algorithm.SymmetricKeyAlgorithm;
 import org.pgpainless.decryption_verification.ConsumerOptions;
 import org.pgpainless.decryption_verification.DecryptionStream;
@@ -42,13 +43,14 @@ public class PgpEncrytion {
         }
     }
 
-    public String encryptData(String data, String[] publicKeyPaths) throws IOException, PGPException {
+    public byte[] encryptData(String data, String[] publicKeyPaths) throws IOException, PGPException {
         ByteArrayOutputStream encryptedOutput = new ByteArrayOutputStream();
 
         List<PGPPublicKeyRing> keys = new ArrayList<>();
         for(String publicKeyPath : publicKeyPaths){
             InputStream keyIn = new FileInputStream(publicKeyPath);
             keys.add(PGPainless.readKeyRing().publicKeyRing(keyIn));
+            keyIn.close();
         }
 
         try (OutputStream outputStream = new ArmoredOutputStream(encryptedOutput)) {
@@ -63,7 +65,9 @@ public class PgpEncrytion {
 //                                            .addPassphrase(Passphrase.fromPassword("1234"))
                                             // optionally override symmetric encryption algorithm
                                             .overrideEncryptionAlgorithm(SymmetricKeyAlgorithm.AES_256)
-                            ).setAsciiArmor(true) // Ascii armor or not
+                            ).overrideCompressionAlgorithm(CompressionAlgorithm.UNCOMPRESSED)
+                                    .setAsciiArmor(true) // Ascii armor or not
+
                     );
 
             try (OutputStream out = encryptionStream) {
@@ -72,7 +76,7 @@ public class PgpEncrytion {
             encryptionStream.close();
         }
 
-        return encryptedOutput.toString();
+        return encryptedOutput.toByteArray();
     }
 
 //    public String decryptData(String data, String privateKeyPath) throws IOException, PGPException {
