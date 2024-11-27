@@ -65,32 +65,28 @@ public class PgpBouncyEncryption {
     public byte[] decryptData(
             byte[] encryptedData,
             List<PGPPrivateKey> privateKeys)
-            throws PGPException, IOException
-    {
+            throws PGPException, IOException {
         InputStream encryptedInput = new ByteArrayInputStream(encryptedData);
         ByteArrayOutputStream decryptedOutput = new ByteArrayOutputStream();
 
         PGPObjectFactory pgpFact = new PGPObjectFactory(PGPUtil.getDecoderStream(new ArmoredInputStream(encryptedInput, true)), new JcaKeyFingerprintCalculator());
-        PGPEncryptedDataList encList = (PGPEncryptedDataList)pgpFact.nextObject();
+        PGPEncryptedDataList encList = (PGPEncryptedDataList) pgpFact.nextObject();
         // find the matching public key encrypted data packet.
         PGPPublicKeyEncryptedData encData = null;
         PGPPrivateKey privateKey = null;
-        for (PGPEncryptedData pgpEnc: encList)
-        {
-            if(!(pgpEnc instanceof PGPPublicKeyEncryptedData))
+        for (PGPEncryptedData pgpEnc : encList) {
+            if (!(pgpEnc instanceof PGPPublicKeyEncryptedData))
                 continue;
             PGPPublicKeyEncryptedData pkEnc
-                    = (PGPPublicKeyEncryptedData)pgpEnc;
+                    = (PGPPublicKeyEncryptedData) pgpEnc;
             Optional<PGPPrivateKey> optionalKey = privateKeys.stream().filter(p -> p.getKeyID() == pkEnc.getKeyID()).findAny();
-            if (optionalKey.isPresent())
-            {
+            if (optionalKey.isPresent()) {
                 encData = pkEnc;
                 privateKey = optionalKey.get();
                 break;
             }
         }
-        if (encData == null)
-        {
+        if (encData == null) {
             throw new IllegalStateException("matching encrypted data not found");
         }
         // build decryptor factory
@@ -98,19 +94,41 @@ public class PgpBouncyEncryption {
                 new JcePublicKeyDataDecryptorFactoryBuilder()
                         .setProvider("BC")
                         .build(privateKey);
+
         InputStream clear = encData.getDataStream(dataDecryptorFactory);
-        byte[] literalData = Streams.readAll(clear);
+        byte[] clearObjectData = Streams.readAll(clear);
         clear.close();
+
         // check data decrypts okay
-        if (encData.verify())
-        {
-            // parse out literal data
-            PGPObjectFactory litFact = new JcaPGPObjectFactory(literalData);
-            PGPLiteralData litData = (PGPLiteralData)litFact.nextObject();
-            byte[] data = Streams.readAll(litData.getInputStream());
-            return data;
+        if (!encData.verify())
+            throw new IllegalStateException("modification check failed");
+
+        PGPObjectFactory clearFactory = new JcaPGPObjectFactory(clearObjectData);
+        Object clearObject = clearFactory.nextObject();
+        if (clearObject instanceof PGPCompressedData) {
+            PGPCompressedData compressedData = (PGPCompressedData) clearObject;
+
+            // Decompress and process the inner data
+            InputStream decompressedStream = compressedData.getDataStream();
+            PGPObjectFactory decompressedFactory = new PGPObjectFactory(decompressedStream, new JcaKeyFingerprintCalculator());
+            clearObject = decompressedFactory.nextObject();
         }
-        throw new IllegalStateException("modification check failed");
+
+        // Handle the literal data
+        if (clearObject instanceof PGPLiteralData) {
+            PGPLiteralData literalData = (PGPLiteralData) clearObject;
+            InputStream literalStream = literalData.getInputStream();
+
+            ByteArrayOutputStream result = new ByteArrayOutputStream();
+            byte[] buffer = new byte[1024];
+            int length;
+            while ((length = literalStream.read(buffer)) != -1) {
+                result.write(buffer, 0, length);
+            }
+            return result.toByteArray();
+        }
+
+        throw new IllegalStateException("data is not parsed");
     }
 
 

@@ -44,7 +44,7 @@ public class PerformanceBouncyTest {
             String armored = new String(encryptedValue, StandardCharsets.UTF_8);
             // Time only the decryption process
             long decryptionStartTime = System.nanoTime();
-            byte[] decryptedNppValue = bouncyEncryption.decryptData(encryptedValue2, cachedPrivateKey);
+            byte[] decryptedNppValue = bouncyEncryption.decryptData(encryptedValue, cachedPrivateKey);
             String app2Value = new String(decryptedNppValue, StandardCharsets.UTF_8);
             if(!app2Value.equals(word)) {
                 throw new Exception("Decryption generated different value");

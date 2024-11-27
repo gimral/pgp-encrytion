@@ -65,8 +65,7 @@ public class PgpEncrytion {
 //                                            .addPassphrase(Passphrase.fromPassword("1234"))
                                             // optionally override symmetric encryption algorithm
                                             .overrideEncryptionAlgorithm(SymmetricKeyAlgorithm.AES_256)
-                            ).overrideCompressionAlgorithm(CompressionAlgorithm.UNCOMPRESSED)
-                                    .setAsciiArmor(true) // Ascii armor or not
+                            ).setAsciiArmor(true) // Ascii armor or not
 
                     );
 
