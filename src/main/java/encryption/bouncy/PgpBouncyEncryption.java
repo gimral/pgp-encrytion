@@ -77,6 +77,8 @@ public class PgpBouncyEncryption {
         PGPPrivateKey privateKey = null;
         for (PGPEncryptedData pgpEnc: encList)
         {
+            if(!(pgpEnc instanceof PGPPublicKeyEncryptedData))
+                continue;
             PGPPublicKeyEncryptedData pkEnc
                     = (PGPPublicKeyEncryptedData)pgpEnc;
             Optional<PGPPrivateKey> optionalKey = privateKeys.stream().filter(p -> p.getKeyID() == pkEnc.getKeyID()).findAny();
